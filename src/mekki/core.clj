@@ -1,4 +1,10 @@
-(ns mekki.core)
+(ns mekki.core
+  (:import [edu.mit.csail.sdg.alloy4compiler.ast
+            Sig Sig$PrimSig Attr]))
+
+(defmacro defsig [signame parents]
+  `(def ~(with-meta signame {:tag Sig})
+     (Sig$PrimSig. ~(name signame) (into-array Attr []))))
 
 (comment
 
