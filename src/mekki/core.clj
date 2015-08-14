@@ -1,10 +1,19 @@
 (ns mekki.core
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
-            Sig Sig$PrimSig Attr]))
+            Sig Sig$PrimSig Sig$SubsetSig Attr]))
 
-(defmacro defsig [signame parents]
-  `(def ~(with-meta signame {:tag Sig})
-     (Sig$PrimSig. ~(name signame) (into-array Attr []))))
+(defmacro defsig [signame & {:keys [extends in]}]
+  (let [meta (meta signame)
+        attrs (->> (cond-> []
+                     (:abstract meta) (conj Attr/ABSTRACT)
+                     (:lone meta) (conj Attr/LONE)
+                     (:one meta) (conj Attr/ONE)
+                     (:some meta) (conj Attr/SOME))
+                   (into-array Attr))]
+    `(def ~(with-meta signame {:tag Sig})
+       ~(if in
+          `(Sig$SubsetSig. ~(name signame) ~in ~attrs)
+          `(Sig$PrimSig. ~(name signame) ~attrs)))))
 
 (comment
 
