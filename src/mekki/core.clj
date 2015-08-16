@@ -1,9 +1,11 @@
 (ns mekki.core
   (:refer-clojure :exclude [compile])
-  (:require [clojure.core.match :refer [match]])
+  (:require [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
             Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant]
            [edu.mit.csail.sdg.alloy4 Util]))
+
+(def the-ns-name (ns-name *ns*))
 
 ;;
 ;; Utilities
@@ -14,6 +16,23 @@
 
 (defn add-tag [x tag]
   (vary-meta x assoc :tag tag))
+
+(defmacro ^:private match [expr & clauses]
+  `(m/match ~expr
+     ~@(->> (for [[pattern action] (partition 2 clauses)]
+              (m/match pattern
+                (['quote sym] :seq)
+                #_=> [`(:or '~sym '~(symbol (str the-ns-name) (str sym)))
+                      action]
+                ([(['quote sym] :seq) & rest] :seq)
+                #_=> [`([(:or '~sym '~(symbol (str the-ns-name) (str sym)))
+                         ~@rest]
+                        :seq)
+                      action]
+                (s :guard seq?) [`(~(vec s) :seq) action]
+                (v :guard vector?) [(seq v) action]
+                :else [pattern action]))
+            (apply concat))))
 
 ;;
 ;; Signature definition
@@ -50,8 +69,8 @@
 (defn- compile-decls [env decls]
   (loop [decls decls, ret []]
     (match decls
-      ([] :seq) ret
-      ([(decl-name :guard symbol?) :- decl-type & decls'] :seq)
+      [_ :guard empty?] ret
+      ((decl-name :guard symbol?) :- decl-type & decls')
       #_=> (let [decl-name (add-tag decl-name ($ Decl))
                  compiled-decl (compile-decl env decl-name decl-type)]
              (recur decls' (conj ret [decl-name compiled-decl])))
@@ -95,7 +114,7 @@
     'univ ($ Sig/UNIV)
     'none ($ Sig/NONE)
     'Int ($ Sig/SIGINT)
-    (_ :guard #(contains? env %)) `(.get ~sym)
+    [_ :guard #(contains? env %)] `(.get ~sym)
     :else sym))
 
 (defn- compile [env expr]
