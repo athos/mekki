@@ -117,11 +117,41 @@
     [_ :guard #(contains? env %)] `(.get ~sym)
     :else sym))
 
+(defn- compile-seq [env expr]
+  (match expr
+    ('not expr1) `(.not ~(compile env expr1))
+    ('no expr1) `(.no ~(compile env expr1))
+    ('one expr1) `(.one ~(compile env expr1))
+    ('lone expr1) `(.lone ~(compile env expr1))
+    ('some expr1) `(.some ~(compile env expr1))
+    ('set expr1) `(.set ~(compile env expr1))
+    ('count expr1) `(.cardinarity ~(compile env expr1))
+    ('trans expr1) `(.transpose ~(compile env expr1))
+    ('* expr1) `(.reflexiveClosure ~(compile env expr1))
+    ('or expr1 expr2) `(.or ~(compile env expr1) ~(compile env expr2))
+    ('iff expr1 expr2) `(.iff ~(compile env expr1) ~(compile env expr2))
+    ('if expr1 expr2) `(.implies ~(compile env expr1) ~(compile env expr2))
+    ('if expr1 expr2 expr3)
+    #_=> `(.ite ~(compile env expr1) ~(compile env expr2) ~(compile env expr3))
+    ('& expr1 expr2) `(.intersect ~(compile env expr1) ~(compile env expr2))
+    ('+ expr1 expr2) `(.plus ~(compile env expr1) ~(compile env expr2))
+    ('- expr1 expr2) `(.minus ~(compile env expr1) ~(compile env expr2))
+    ('++ expr1 expr2) `(.override ~(compile env expr1) ~(compile env expr2))
+    ('. expr1 expr2) `(.join ~(compile env expr1) ~(compile env expr2))
+    ('-> expr1 expr2) `(.product ~(compile env expr1) ~(compile env expr2))
+    ('in expr1 expr2) `(.in ~(compile env expr1) ~(compile env expr2))
+    ('= expr1 expr2) `(.equal ~(compile env expr1) ~(compile env expr2))
+    ('< expr1 expr2) `(.lt ~(compile env expr1) ~(compile env expr2))
+    ('> expr1 expr2) `(.gt ~(compile env expr1) ~(compile env expr2))
+    ('<= expr1 expr2) `(.lte ~(compile env expr1) ~(compile env expr2))
+    ('>= expr1 expr2) `(.gte ~(compile env expr1 ~(compile env expr2)))))
+
 (defn- compile [env expr]
   (-> (cond (false? expr) ($ ExprConstant/FALSE)
             (true? expr) ($ ExprConstant/TRUE)
             (integer? expr) (compile-integer expr)
-            (symbol? expr) (compile-symbol env expr))
+            (symbol? expr) (compile-symbol env expr)
+            (seq? expr) (compile-seq env expr))
       (add-tag ($ Expr))))
 
 (comment
