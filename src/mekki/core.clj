@@ -55,7 +55,7 @@
       #_=> (let [decl-name (add-tag decl-name ($ Decl))
                  compiled-decl (compile-decl decl-name decl-type)]
              (recur decls' (conj ret [decl-name compiled-decl])))
-      :else (IllegalArgumentException. "malformed decl"))))
+      :else (throw (IllegalArgumentException. "malformed decl")))))
 
 (defn emit-func [funcname params return-type expr]
   (let [decls (compile-decls params)]
