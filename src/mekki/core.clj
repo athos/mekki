@@ -54,8 +54,8 @@
 
   (defsig B)
   (defsig ^:abstract A
-    [f :- (lone->lone B B)]
-    [g :- B])
+    [f :- (lone->lone B B)
+     g :- B])
 
   (defsig ^:one A1 :extends A)
   (defsig ^:one A2 :extends A)
