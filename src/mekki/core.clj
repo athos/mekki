@@ -4,11 +4,19 @@
             Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant]
            [edu.mit.csail.sdg.alloy4 Util]))
 
+;;
+;; Utilities
+;;
+
 (defmacro $ [sym]
   `'~(symbol (str 'edu.mit.csail.sdg.alloy4compiler.ast. sym)))
 
 (defn add-tag [x tag]
   (vary-meta x assoc :tag tag))
+
+;;
+;; Signature definition
+;;
 
 (defmacro defsig [signame & {:keys [extends in]}]
   (let [meta (meta signame)
@@ -23,6 +31,10 @@
           `(Sig$PrimSig. ~(name signame) (into-array Attr ~attrs))))))
 
 (declare compile)
+
+;;
+;; Pred/Func definition
+;;
 
 (defn- compile-decl [env decl-name decl-type]
   (letfn [(emit-decl [method type]
