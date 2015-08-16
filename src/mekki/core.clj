@@ -22,17 +22,19 @@
           `(Sig$PrimSig. ~(name signame) (into-array Attr ~attrs))))))
 
 (defn- compile [expr]
-  (match expr
-    false ($ ExprConstant/FALSE)
-    true ($ ExprConstant/TRUE)
-    0 ($ ExprConstant/ZERO)
-    1 ($ ExprConstan/ONE)
-    (n :guard integer?) `(~($ ExprConstant/makeNUMBER) ~n)
-    'iden ($ ExprConstant/IDEN)
-    'next ($ ExprConstant/NEXT)
-    'univ ($ Sig/UNIV)
-    'none ($ Sig/NONE)
-    'Int ($ Sig/SIGINT)))
+  (-> (match expr
+        false ($ ExprConstant/FALSE)
+        true ($ ExprConstant/TRUE)
+        0 ($ ExprConstant/ZERO)
+        1 ($ ExprConstan/ONE)
+        (n :guard integer?) `(~($ ExprConstant/makeNUMBER) ~n)
+        'iden ($ ExprConstant/IDEN)
+        'next ($ ExprConstant/NEXT)
+        'univ ($ Sig/UNIV)
+        'none ($ Sig/NONE)
+        'Int ($ Sig/SIGINT)
+        (v :guard symbol?) `(.get ~v))
+      (add-tag ($ Expr))))
 
 (defn emit-func [funcname params return-type expr]
   `(def ~(add-tag funcname ($ Func))
