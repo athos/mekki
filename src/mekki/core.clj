@@ -1,7 +1,8 @@
 (ns mekki.core
   (:require [clojure.core.match :refer [match]])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
-            Sig Sig$PrimSig Sig$SubsetSig Attr Func Expr ExprConstant]))
+            Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant]
+           [edu.mit.csail.sdg.alloy4 Util]))
 
 (defmacro $ [sym]
   `'~(symbol (str 'edu.mit.csail.sdg.alloy4compiler.ast. sym)))
@@ -36,9 +37,33 @@
         (v :guard symbol?) `(.get ~v))
       (add-tag ($ Expr))))
 
+(defn- compile-decl [decl-name decl-type]
+  (letfn [(emit-decl [method type]
+            `(~method ~(compile type) ~(name decl-name)))]
+    (match decl-type
+      ([(maybe-mult :guard symbol?) t] :seq)
+      #_=> (if-let [m ('#{one lone some set} maybe-mult)]
+             (emit-decl (symbol (str '. m 'Of)) t)
+             (emit-decl '.oneOf decl-type))
+      :else (emit-decl '.oneOf decl-type))))
+
+(defn- compile-decls [decls]
+  (loop [decls decls, ret []]
+    (match decls
+      ([] :seq) ret
+      ([(decl-name :guard symbol?) :- decl-type & decls'] :seq)
+      #_=> (let [decl-name (add-tag decl-name ($ Decl))
+                 compiled-decl (compile-decl decl-name decl-type)]
+             (recur decls' (conj ret [decl-name compiled-decl])))
+      :else (IllegalArgumentException. "malformed decl"))))
+
 (defn emit-func [funcname params return-type expr]
-  `(def ~(add-tag funcname ($ Func))
-     (Func. nil ~(name funcname) ~params ~return-type ~expr)))
+  (let [decls (compile-decls params)]
+    `(def ~(add-tag funcname ($ Func))
+       (let [~@(apply concat decls)]
+         (Func. nil ~(name funcname)
+                (Util/asList (into-array Decl ~(mapv first decls)))
+                ~return-type ~expr)))))
 
 (defn reduce-with-and [exprs]
   (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
