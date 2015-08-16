@@ -2,18 +2,23 @@
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
             Sig Sig$PrimSig Sig$SubsetSig Attr]))
 
+(defmacro ast [sym]
+  `'~(symbol (str 'edu.mit.csail.sdg.alloy4compiler.ast. sym)))
+
+(defn add-tag [x tag]
+  (vary-meta x assoc :tag tag))
+
 (defmacro defsig [signame & {:keys [extends in]}]
   (let [meta (meta signame)
-        attrs (->> (cond-> []
-                     (:abstract meta) (conj Attr/ABSTRACT)
-                     (:lone meta) (conj Attr/LONE)
-                     (:one meta) (conj Attr/ONE)
-                     (:some meta) (conj Attr/SOME))
-                   (into-array Attr))]
-    `(def ~(with-meta signame {:tag Sig})
+        attrs (cond-> []
+                (:abstract meta) (conj (ast Attr/ABSTRACT))
+                (:lone meta) (conj (ast Attr/LONE))
+                (:one meta) (conj (ast Attr/ONE))
+                (:some meta) (conj (ast Attr/SOME)))]
+    `(def ~(add-tag signame (ast Sig))
        ~(if in
-          `(Sig$SubsetSig. ~(name signame) ~in ~attrs)
-          `(Sig$PrimSig. ~(name signame) ~attrs)))))
+          `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
+          `(Sig$PrimSig. ~(name signame) (into-array Attr ~attrs))))))
 
 (comment
 
