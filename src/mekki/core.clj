@@ -24,9 +24,9 @@
 
 (declare compile)
 
-(defn- compile-decl [decl-name decl-type]
+(defn- compile-decl [env decl-name decl-type]
   (letfn [(emit-decl [method type]
-            `(~method ~(compile type) ~(name decl-name)))]
+            `(~method ~(compile env type) ~(name decl-name)))]
     (match decl-type
       ([(maybe-mult :guard symbol?) t] :seq)
       #_=> (if-let [m ('#{one lone some set} maybe-mult)]
@@ -34,13 +34,13 @@
              (emit-decl '.oneOf decl-type))
       :else (emit-decl '.oneOf decl-type))))
 
-(defn- compile-decls [decls]
+(defn- compile-decls [env decls]
   (loop [decls decls, ret []]
     (match decls
       ([] :seq) ret
       ([(decl-name :guard symbol?) :- decl-type & decls'] :seq)
       #_=> (let [decl-name (add-tag decl-name ($ Decl))
-                 compiled-decl (compile-decl decl-name decl-type)]
+                 compiled-decl (compile-decl env decl-name decl-type)]
              (recur decls' (conj ret [decl-name compiled-decl])))
       :else (throw (IllegalArgumentException. "malformed decl")))))
 
@@ -48,10 +48,11 @@
   (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
 
 (defn emit-func [funcname params return-type body]
-  (let [decls (compile-decls params)
+  (let [decls (compile-decls #{} params)
+        names (map first decls)
         body (if (empty? body)
                ExprConstant/TRUE
-               (reduce-with-and (map compile body)))]
+               (reduce-with-and (map #(compile (set names) %) body)))]
     `(def ~(add-tag funcname ($ Func))
        (let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
@@ -74,20 +75,21 @@
     1 ($ ExprConstant/ONE)
     `(ExprConstant/makeNUMBER ~n)))
 
-(defn- compile-symbol [sym]
+(defn- compile-symbol [env sym]
   (match sym
     'iden ($ ExprConstant/IDEN)
     'next ($ ExprConstant/NEXT)
     'univ ($ Sig/UNIV)
     'none ($ Sig/NONE)
     'Int ($ Sig/SIGINT)
-    :else `(.get ~sym)))
+    (_ :guard #(contains? env %)) `(.get ~sym)
+    :else sym))
 
-(defn- compile [expr]
+(defn- compile [env expr]
   (-> (cond (false? expr) ($ ExprConstant/FALSE)
             (true? expr) ($ ExprConstant/TRUE)
             (integer? expr) (compile-integer expr)
-            (symbol? expr) (compile-symbol expr))
+            (symbol? expr) (compile-symbol env expr))
       (add-tag ($ Expr))))
 
 (comment
