@@ -1,4 +1,5 @@
 (ns mekki.core
+  (:require [clojure.core.match :refer [match]])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
             Sig Sig$PrimSig Sig$SubsetSig Attr Func Expr ExprConstant]))
 
@@ -20,6 +21,19 @@
           `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
           `(Sig$PrimSig. ~(name signame) (into-array Attr ~attrs))))))
 
+(defn- compile [expr]
+  (match expr
+    false ($ ExprConstant/FALSE)
+    true ($ ExprConstant/TRUE)
+    0 ($ ExprConstant/ZERO)
+    1 ($ ExprConstan/ONE)
+    (n :guard integer?) `(~($ ExprConstant/makeNUMBER) ~n)
+    'iden ($ ExprConstant/IDEN)
+    'next ($ ExprConstant/NEXT)
+    'univ ($ Sig/UNIV)
+    'none ($ Sig/NONE)
+    'Int ($ Sig/SIGINT)))
+
 (defn emit-func [funcname params return-type expr]
   `(def ~(add-tag funcname ($ Func))
      (Func. nil ~(name funcname) ~params ~return-type ~expr)))
@@ -28,13 +42,13 @@
   (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
 
 (defmacro defpred [predname params & body]
-  (let [body (cond (empty? body) ExprConstant/TRUE
-                   (> (count body) 1) (reduce-with-and body)
-                   :else body)]
+  (let [body (if (empty? body)
+               ExprConstant/TRUE
+               (reduce-with-and (map compile body)))]
     (emit-func predname params nil body)))
 
 (defmacro deffunc [funcname params _ return-type body]
-  (emit-func funcname params return-type body))
+  (emit-func funcname params return-type (map compile body)))
 
 (comment
 
