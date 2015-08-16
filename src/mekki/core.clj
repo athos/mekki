@@ -1,4 +1,5 @@
 (ns mekki.core
+  (:refer-clojure :exclude [compile])
   (:require [clojure.core.match :refer [match]])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
             Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant]
