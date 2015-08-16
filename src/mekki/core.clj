@@ -44,25 +44,25 @@
              (recur decls' (conj ret [decl-name compiled-decl])))
       :else (throw (IllegalArgumentException. "malformed decl")))))
 
-(defn emit-func [funcname params return-type expr]
-  (let [decls (compile-decls params)]
+(defn reduce-with-and [exprs]
+  (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
+
+(defn emit-func [funcname params return-type body]
+  (let [decls (compile-decls params)
+        body (if (empty? body)
+               ExprConstant/TRUE
+               (reduce-with-and (map compile body)))]
     `(def ~(add-tag funcname ($ Func))
        (let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
                 (Util/asList (into-array Decl ~(mapv first decls)))
-                ~return-type ~expr)))))
-
-(defn reduce-with-and [exprs]
-  (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
+                ~return-type ~body)))))
 
 (defmacro defpred [predname params & body]
-  (let [body (if (empty? body)
-               ExprConstant/TRUE
-               (reduce-with-and (map compile body)))]
-    (emit-func predname params nil body)))
+  (emit-func predname params nil body))
 
 (defmacro deffunc [funcname params _ return-type body]
-  (emit-func funcname params return-type (map compile body)))
+  (emit-func funcname params return-type [body]))
 
 ;;
 ;; Compilation
