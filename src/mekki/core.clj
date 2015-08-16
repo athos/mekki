@@ -22,20 +22,7 @@
           `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
           `(Sig$PrimSig. ~(name signame) (into-array Attr ~attrs))))))
 
-(defn- compile [expr]
-  (-> (match expr
-        false ($ ExprConstant/FALSE)
-        true ($ ExprConstant/TRUE)
-        0 ($ ExprConstant/ZERO)
-        1 ($ ExprConstan/ONE)
-        (n :guard integer?) `(~($ ExprConstant/makeNUMBER) ~n)
-        'iden ($ ExprConstant/IDEN)
-        'next ($ ExprConstant/NEXT)
-        'univ ($ Sig/UNIV)
-        'none ($ Sig/NONE)
-        'Int ($ Sig/SIGINT)
-        (v :guard symbol?) `(.get ~v))
-      (add-tag ($ Expr))))
+(declare compile)
 
 (defn- compile-decl [decl-name decl-type]
   (letfn [(emit-decl [method type]
@@ -76,6 +63,32 @@
 
 (defmacro deffunc [funcname params _ return-type body]
   (emit-func funcname params return-type (map compile body)))
+
+;;
+;; Compilation
+;;
+
+(defn- compile-integer [n]
+  (case n
+    0 ($ ExprConstant/ZERO)
+    1 ($ ExprConstant/ONE)
+    `(ExprConstant/makeNUMBER ~n)))
+
+(defn- compile-symbol [sym]
+  (match sym
+    'iden ($ ExprConstant/IDEN)
+    'next ($ ExprConstant/NEXT)
+    'univ ($ Sig/UNIV)
+    'none ($ Sig/NONE)
+    'Int ($ Sig/SIGINT)
+    :else `(.get ~sym)))
+
+(defn- compile [expr]
+  (-> (cond (false? expr) ($ ExprConstant/FALSE)
+            (true? expr) ($ ExprConstant/TRUE)
+            (integer? expr) (compile-integer expr)
+            (symbol? expr) (compile-symbol expr))
+      (add-tag ($ Expr))))
 
 (comment
 
