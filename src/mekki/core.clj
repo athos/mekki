@@ -2,7 +2,7 @@
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
             Sig Sig$PrimSig Sig$SubsetSig Attr Func Expr ExprConstant]))
 
-(defmacro ast [sym]
+(defmacro $ [sym]
   `'~(symbol (str 'edu.mit.csail.sdg.alloy4compiler.ast. sym)))
 
 (defn add-tag [x tag]
@@ -11,21 +11,21 @@
 (defmacro defsig [signame & {:keys [extends in]}]
   (let [meta (meta signame)
         attrs (cond-> []
-                (:abstract meta) (conj (ast Attr/ABSTRACT))
-                (:lone meta) (conj (ast Attr/LONE))
-                (:one meta) (conj (ast Attr/ONE))
-                (:some meta) (conj (ast Attr/SOME)))]
-    `(def ~(add-tag signame (ast Sig))
+                (:abstract meta) (conj ($ Attr/ABSTRACT))
+                (:lone meta) (conj ($ Attr/LONE))
+                (:one meta) (conj ($ Attr/ONE))
+                (:some meta) (conj ($ Attr/SOME)))]
+    `(def ~(add-tag signame ($ Sig))
        ~(if in
           `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
           `(Sig$PrimSig. ~(name signame) (into-array Attr ~attrs))))))
 
 (defn emit-func [funcname params return-type expr]
-  `(def ~(add-tag funcname (ast Func))
+  `(def ~(add-tag funcname ($ Func))
      (Func. nil ~(name funcname) ~params ~return-type ~expr)))
 
 (defn reduce-with-and [exprs]
-  (reduce (fn [a e] `(.and ~(add-tag a (ast Expr)) ~e)) exprs))
+  (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
 
 (defmacro defpred [predname params & body]
   (let [body (cond (empty? body) ExprConstant/TRUE
