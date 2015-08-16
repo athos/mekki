@@ -1,6 +1,6 @@
 (ns mekki.core
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
-            Sig Sig$PrimSig Sig$SubsetSig Attr]))
+            Sig Sig$PrimSig Sig$SubsetSig Attr Func Expr ExprConstant]))
 
 (defmacro ast [sym]
   `'~(symbol (str 'edu.mit.csail.sdg.alloy4compiler.ast. sym)))
@@ -19,6 +19,22 @@
        ~(if in
           `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
           `(Sig$PrimSig. ~(name signame) (into-array Attr ~attrs))))))
+
+(defn emit-func [funcname params return-type expr]
+  `(def ~(add-tag funcname (ast Func))
+     (Func. nil ~(name funcname) ~params ~return-type ~expr)))
+
+(defn reduce-with-and [exprs]
+  (reduce (fn [a e] `(.and ~(add-tag a (ast Expr)) ~e)) exprs))
+
+(defmacro defpred [predname params & body]
+  (let [body (cond (empty? body) ExprConstant/TRUE
+                   (> (count body) 1) (reduce-with-and body)
+                   :else body)]
+    (emit-func predname params nil body)))
+
+(defmacro deffunc [funcname params _ return-type body]
+  (emit-func funcname params return-type body))
 
 (comment
 
