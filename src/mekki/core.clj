@@ -79,17 +79,20 @@
 (defn reduce-with-and [exprs]
   (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
 
+(defn compile-block [env block]
+  (if (empty? block)
+    ExprConstant/TRUE
+    (reduce-with-and (map #(compile env %) block))))
+
 (defn emit-func [funcname params return-type body]
   (let [decls (compile-decls #{} params)
-        names (map first decls)
-        body (if (empty? body)
-               ExprConstant/TRUE
-               (reduce-with-and (map #(compile (set names) %) body)))]
+        names (map first decls)]
     `(def ~(add-tag funcname ($ Func))
        (let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
                 (Util/asList (into-array Decl ~(mapv first decls)))
-                ~return-type ~body)))))
+                ~return-type
+                ~(compile-block (set names) body))))))
 
 (defmacro defpred [predname params & body]
   (emit-func predname params nil body))
