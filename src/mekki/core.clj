@@ -147,7 +147,14 @@
     ('< expr1 expr2) `(.lt ~(compile env expr1) ~(compile env expr2))
     ('> expr1 expr2) `(.gt ~(compile env expr1) ~(compile env expr2))
     ('<= expr1 expr2) `(.lte ~(compile env expr1) ~(compile env expr2))
-    ('>= expr1 expr2) `(.gte ~(compile env expr1) ~(compile env expr2))))
+    ('>= expr1 expr2) `(.gte ~(compile env expr1) ~(compile env expr2))
+    ('all (decls :guard vector?) & body)
+    #_=> (let [compiled-decls (compile-decls #{} decls)
+               names (map first compiled-decls)]
+           `(let [~@(apply concat compiled-decls)]
+              (.forAll ~(compile-block (into env names) body)
+                       ~(first names)
+                       (into-array Decl [~@(rest names)]))))))
 
 (defn- compile [env expr]
   (-> (cond (false? expr) ($ ExprConstant/FALSE)
