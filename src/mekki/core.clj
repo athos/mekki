@@ -147,7 +147,7 @@
     ('< expr1 expr2) `(.lt ~(compile env expr1) ~(compile env expr2))
     ('> expr1 expr2) `(.gt ~(compile env expr1) ~(compile env expr2))
     ('<= expr1 expr2) `(.lte ~(compile env expr1) ~(compile env expr2))
-    ('>= expr1 expr2) `(.gte ~(compile env expr1 ~(compile env expr2)))))
+    ('>= expr1 expr2) `(.gte ~(compile env expr1) ~(compile env expr2))))
 
 (defn- compile [env expr]
   (-> (cond (false? expr) ($ ExprConstant/FALSE)
