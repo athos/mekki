@@ -131,6 +131,11 @@
                           ~(first names)
                           (into-array Decl [~@(rest names)])))))]
     (match expr
+      ('no (decls :guard vector?) & body) (formula '.forNo decls body)
+      ('one (decls :guard vector?) & body) (formula '.forOne decls body)
+      ('lone (decls :guard vector?) & body) (formula '.forLone decls body)
+      ('some (decls :guard vector?) & body) (formula '.forSome decls body)
+      ('all (decls :guard vector?) & body) (formula '.forAll decls body)
       ('not expr1) (operator '.not expr1)
       ('no expr1) (operator '.no expr1)
       ('one expr1) (operator '.one expr1)
@@ -155,8 +160,7 @@
       ('< expr1 expr2) (operator '.lt expr1 expr2)
       ('> expr1 expr2) (operator '.gt expr1 expr2)
       ('<= expr1 expr2) (operator '.lte expr1 expr2)
-      ('>= expr1 expr2) (operator '.gte expr1 expr2)
-      ('all (decls :guard vector?) & body) (formula '.forAll decls body))))
+      ('>= expr1 expr2) (operator '.gte expr1 expr2))))
 
 (defn- compile [env expr]
   (-> (cond (false? expr) ($ ExprConstant/FALSE)
