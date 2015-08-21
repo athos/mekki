@@ -2,7 +2,7 @@
   (:refer-clojure :exclude [compile])
   (:require [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
-            Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant]
+            Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant ExprCall]
            [edu.mit.csail.sdg.alloy4 Util]))
 
 (def the-ns-name (ns-name *ns*))
@@ -160,7 +160,14 @@
       ('< expr1 expr2) (operator '.lt expr1 expr2)
       ('> expr1 expr2) (operator '.gt expr1 expr2)
       ('<= expr1 expr2) (operator '.lte expr1 expr2)
-      ('>= expr1 expr2) (operator '.gte expr1 expr2))))
+      ('>= expr1 expr2) (operator '.gte expr1 expr2)
+      (op & args)
+      #_=> (if (contains? env op)
+             (operator '.join (first args) op)
+             (let [v (resolve op)]
+               (if (and (var? v) (= (:tag (meta v)) Sig))
+                 (operator '.join (first args) op)
+                 `(ExprCall/make nil nil ~op ~(mapv #(compile env %) args) 0)))))))
 
 (defn- compile [env expr]
   (-> (cond (false? expr) ($ ExprConstant/FALSE)
