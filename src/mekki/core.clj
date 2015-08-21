@@ -136,6 +136,7 @@
       ('lone (decls :guard vector?) & body) (formula '.forLone decls body)
       ('some (decls :guard vector?) & body) (formula '.forSome decls body)
       ('all (decls :guard vector?) & body) (formula '.forAll decls body)
+      ('for (decls :guard vector?) & body) (formula '.comprehensionOver decls body)
       ('not expr1) (operator '.not expr1)
       ('no expr1) (operator '.no expr1)
       ('one expr1) (operator '.one expr1)
