@@ -34,23 +34,49 @@
                 :else [pattern action]))
             (apply concat))))
 
+(defn- map-decls [f decls]
+  (loop [decls decls, ret []]
+    (match decls
+      [_ :guard empty?] ret
+      ((decl-name :guard symbol?) :- decl-type & decls')
+      #_=> (recur decls' (conj ret (f decl-name decl-type)))
+      :else (throw (IllegalArgumentException. "malformed decl")))))
+
 ;;
 ;; Signature definition
 ;;
 
-(defmacro defsig [signame & {:keys [extends in]}]
+(declare compile)
+
+(defn- parse-opts [opts]
+  (loop [[maybe-keyword maybe-arg & opts' :as opts] opts, ret {}]
+    (cond (empty? opts) ret
+          (= maybe-keyword :in)
+          #_=> (recur opts' (assoc ret :in maybe-arg))
+          (= maybe-keyword :extends)
+          #_=> (recur opts' (assoc ret :parent maybe-arg))
+          (vector? maybe-keyword)
+          #_=> (assoc ret :fields maybe-keyword))))
+
+(defmacro defsig [signame & opts]
   (let [meta (meta signame)
         attrs (cond-> []
                 (:abstract meta) (conj ($ Attr/ABSTRACT))
                 (:lone meta) (conj ($ Attr/LONE))
                 (:one meta) (conj ($ Attr/ONE))
-                (:some meta) (conj ($ Attr/SOME)))]
-    `(def ~(add-tag signame ($ Sig))
-       ~(if in
-          `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
-          `(Sig$PrimSig. ~(name signame) (into-array Attr ~attrs))))))
-
-(declare compile)
+                (:some meta) (conj ($ Attr/SOME)))
+        {:keys [in parent fields]} (parse-opts opts)]
+    `(do (def ~(add-tag signame ($ Sig))
+           ~(if in
+              `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
+              `(Sig$PrimSig. ~(name signame)
+                             ~@(if parent [parent])
+                             (into-array Attr ~attrs))))
+         ~@(for [[decl-name decl-type] (map-decls list fields)]
+             `(.addField ~signame
+                         ~(name decl-name)
+                         ~(compile #{} decl-type)))
+         #'~signame)))
 
 ;;
 ;; Pred/Func definition
@@ -65,14 +91,6 @@
              (emit-decl (symbol (str '. m 'Of)) t)
              (emit-decl '.oneOf decl-type))
       :else (emit-decl '.oneOf decl-type))))
-
-(defn- map-decls [f decls]
-  (loop [decls decls, ret []]
-    (match decls
-      [_ :guard empty?] ret
-      ((decl-name :guard symbol?) :- decl-type & decls')
-      #_=> (recur decls' (conj ret (f decl-name decl-type)))
-      :else (throw (IllegalArgumentException. "malformed decl")))))
 
 (defn- compile-decls [env decls]
   (map-decls (fn [decl-name decl-type]
