@@ -66,15 +66,19 @@
              (emit-decl '.oneOf decl-type))
       :else (emit-decl '.oneOf decl-type))))
 
-(defn- compile-decls [env decls]
+(defn- map-decls [f decls]
   (loop [decls decls, ret []]
     (match decls
       [_ :guard empty?] ret
       ((decl-name :guard symbol?) :- decl-type & decls')
-      #_=> (let [decl-name (add-tag decl-name ($ Decl))
-                 compiled-decl (compile-decl env decl-name decl-type)]
-             (recur decls' (conj ret [decl-name compiled-decl])))
+      #_=> (recur decls' (conj ret (f decl-name decl-type)))
       :else (throw (IllegalArgumentException. "malformed decl")))))
+
+(defn- compile-decls [env decls]
+  (map-decls (fn [decl-name decl-type]
+               [(add-tag decl-name ($ Decl))
+                (compile-decl env decl-name decl-type)])
+             decls))
 
 (defn reduce-with-and [exprs]
   (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
