@@ -11,6 +11,9 @@
 ;; Utilities
 ;;
 
+(defn- qualify [sym]
+  (symbol (str the-ns-name) (str sym)))
+
 (defmacro $ [sym]
   `'~(symbol (str 'edu.mit.csail.sdg.alloy4compiler.ast. sym)))
 
@@ -22,13 +25,9 @@
      ~@(->> (for [[pattern action] (partition 2 clauses)]
               (m/match pattern
                 (['quote sym] :seq)
-                #_=> [`(:or '~sym '~(symbol (str the-ns-name) (str sym)))
-                      action]
+                #_=> [`(:or '~sym '~(qualify sym)) action]
                 ([(['quote sym] :seq) & rest] :seq)
-                #_=> [`([(:or '~sym '~(symbol (str the-ns-name) (str sym)))
-                         ~@rest]
-                        :seq)
-                      action]
+                #_=> [`([(:or '~sym '~(qualify sym)) ~@rest] :seq) action]
                 (s :guard seq?) [`(~(vec s) :seq) action]
                 (v :guard vector?) [(seq v) action]
                 :else [pattern action]))
