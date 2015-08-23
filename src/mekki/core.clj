@@ -156,7 +156,7 @@
     lone->set lone_arrow_any, some-> some_arrow_any, some->one some_arrow_one
     some->lone some_arrow_lone, some->some some_arrow_some
     some->set some_arrow_any, set-> product, set->one any_arrow_one
-    set->lone any_arrow_lone, set->some any_arrow_some, set->set preduct})
+    set->lone any_arrow_lone, set->some any_arrow_some, set->set product})
 
 (def ^:private ternary-ops '{if ite})
 
