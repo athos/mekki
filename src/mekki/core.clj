@@ -147,7 +147,16 @@
 
 (def ^:private binary-ops
   '{or or, iff iff, if implies, & intersect, + plus, - minus, ++ override,
-    . join, -> product, in in, = equal, < lt, > gt, <= lte, >= gte})
+    . join, -> product, in in, = equal, < lt, > gt, <= lte, >= gte
+    ->one any_arrow_one, ->lone any_arrow_lone, ->some any_arrow_some
+    ->set preduct, one-> one_arrow_any, one->one one_arrow_one
+    one->lone one_arrow_lone, one->some one_arrow_some
+    one->set one_arrow_any, lone-> lone_arrow_any, lone->one lone_arrow_one
+    lone->lone lone_arrow_lone, lone->some lone_arrow_some
+    lone->set lone_arrow_any, some-> some_arrow_any, some->one some_arrow_one
+    some->lone some_arrow_lone, some->some some_arrow_some
+    some->set some_arrow_any, set-> product, set->one any_arrow_one
+    set->lone any_arrow_lone, set->some any_arrow_some, set->set preduct})
 
 (def ^:private ternary-ops '{if ite})
 
