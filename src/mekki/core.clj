@@ -134,7 +134,7 @@
 
 (defn run-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
   (let [sigs (or sigs
-                 (for [[_ v] (ns-publics *ns*)
+                 (for [[_ v] (ns-publics ns)
                        :when (= (:tag (meta v)) Sig)]
                    (deref v)))
         cmd (Command. false 3 3 3 e)
