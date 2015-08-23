@@ -141,6 +141,46 @@
     [_ :guard #(contains? env %)] `(.get ~sym)
     :else sym))
 
+(def ^:private unary-ops
+  '{not not, no no, one one, lone lone, some some, set set
+    count cardinarity, trans transpose, * reflexiveClosure})
+
+(def ^:private binary-ops
+  '{or or, iff iff, if implies, & intersect, + plus, - minus, ++ override,
+    . join, -> product, in in, = equal, < lt, > gt, <= lte, >= gte})
+
+(def ^:private ternary-ops '{if ite})
+
+(def ^:private formulae
+  '{no forNo, one forOne, lone forLone, some forSome, all forAll,
+    for comprehensionOver})
+
+(def ^:private operators
+  (reduce-kv (fn [m k v] (-> m (assoc k v) (assoc (qualify k) v)))
+             {}
+             (merge unary-ops binary-ops ternary-ops formulae)))
+
+(defn- operator? [expr]
+  (contains? operators (first expr)))
+
+(defmacro compile-operator [expr]
+  (letfn [(dot [method] (symbol (str '. method)))]
+    `(match ~expr
+       ~@(mapcat (fn [[op method]]
+                   [`('~op (~'decls :guard ~'vector?) ~'& ~'body)
+                    `(~'formula '~(dot method) ~'decls ~'body)])
+                 formulae)
+       ~@(mapcat (fn [[op method]]
+                   [`('~op ~'e) `(~'operator '~(dot method) ~'e)])
+                 unary-ops)
+       ~@(mapcat (fn [[op method]]
+                   [`('~op ~'e1 ~'e2) `(~'operator '~(dot method) ~'e1 ~'e2)])
+                 binary-ops)
+       ~@(mapcat (fn [[op method]]
+                   [`('~op ~'e1 ~'e2 ~'e3)
+                    `(~'operator '~(dot method) ~'e1 ~'e2 ~'e3)])
+                 ternary-ops))))
+
 (defn- compile-seq [env expr]
   (letfn [(operator [method & operands]
             `(~method ~@(map #(compile env %) operands)))
@@ -151,45 +191,15 @@
                  (~method ~(compile-block (into env names) body)
                           ~(first names)
                           (into-array Decl [~@(rest names)])))))]
-    (match expr
-      ('no (decls :guard vector?) & body) (formula '.forNo decls body)
-      ('one (decls :guard vector?) & body) (formula '.forOne decls body)
-      ('lone (decls :guard vector?) & body) (formula '.forLone decls body)
-      ('some (decls :guard vector?) & body) (formula '.forSome decls body)
-      ('all (decls :guard vector?) & body) (formula '.forAll decls body)
-      ('for (decls :guard vector?) & body) (formula '.comprehensionOver decls body)
-      ('not expr1) (operator '.not expr1)
-      ('no expr1) (operator '.no expr1)
-      ('one expr1) (operator '.one expr1)
-      ('lone expr1) (operator '.lone expr1)
-      ('some expr1) (operator '.some expr1)
-      ('set expr1) (operator '.set expr1)
-      ('count expr1) (operator '.cardinarity expr1)
-      ('trans expr1) (operator '.transpose expr1)
-      ('* expr1) (operator '.reflexiveClosure expr1)
-      ('or expr1 expr2) (operator '.or expr1 expr2)
-      ('iff expr1 expr2) (operator '.iff expr1 expr2)
-      ('if expr1 expr2) (operator '.implies expr1 expr2)
-      ('if expr1 expr2 expr3) (operator '.ite expr1 expr2 expr3)
-      ('& expr1 expr2) (operator '.intersect expr1 expr2)
-      ('+ expr1 expr2) (operator '.plus expr1 expr2)
-      ('- expr1 expr2) (operator '.minus expr1 expr2)
-      ('++ expr1 expr2) (operator '.override expr1 expr2)
-      ('. expr1 expr2) (operator '.join expr1 expr2)
-      ('-> expr1 expr2) (operator '.product expr1 expr2)
-      ('in expr1 expr2) (operator '.in expr1 expr2)
-      ('= expr1 expr2) (operator '.equal expr1 expr2)
-      ('< expr1 expr2) (operator '.lt expr1 expr2)
-      ('> expr1 expr2) (operator '.gt expr1 expr2)
-      ('<= expr1 expr2) (operator '.lte expr1 expr2)
-      ('>= expr1 expr2) (operator '.gte expr1 expr2)
-      (op & args)
-      #_=> (if (contains? env op)
-             (operator '.join (first args) op)
-             (let [v (resolve op)]
-               (if (and (var? v) (= (:tag (meta v)) Sig))
-                 (operator '.join (first args) op)
-                 `(ExprCall/make nil nil ~op ~(mapv #(compile env %) args) 0)))))))
+    (if (operator? expr)
+      (compile-operator expr)
+      (let [[op & args] expr]
+        (if (contains? env op)
+          (operator '.join (first args) op)
+          (let [v (resolve op)]
+            (if (and (var? v) (= (:tag (meta v)) Sig))
+              (operator '.join (first args) op)
+              `(ExprCall/make nil nil ~op ~(mapv #(compile env %) args) 0))))))))
 
 (defn- compile [env expr]
   (-> (cond (false? expr) ($ ExprConstant/FALSE)
