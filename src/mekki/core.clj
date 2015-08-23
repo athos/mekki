@@ -2,8 +2,12 @@
   (:refer-clojure :exclude [compile])
   (:require [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
-            Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant ExprCall]
-           [edu.mit.csail.sdg.alloy4 Util]))
+            Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant
+            ExprCall Command]
+           [edu.mit.csail.sdg.alloy4compiler.translator
+            A4Options A4Options$SatSolver TranslateAlloyToKodkod]
+           [edu.mit.csail.sdg.alloy4 Util A4Reporter]
+           java.util.Arrays))
 
 (def the-ns-name (ns-name *ns*))
 
@@ -120,6 +124,26 @@
 
 (defmacro deffunc [funcname params _ return-type body]
   (emit-func funcname params return-type [body]))
+
+;;
+;; Execution
+;;
+
+(defmacro expr [e]
+  (compile #{} e))
+
+(defn run-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
+  (let [sigs (or sigs
+                 (for [[_ v] (ns-publics *ns*)
+                       :when (= (:tag (meta v)) Sig)]
+                   (deref v)))
+        cmd (Command. false 3 3 3 e)
+        opts (A4Options.)]
+    (set! (.solver opts) (A4Options$SatSolver/SAT4J))
+    (TranslateAlloyToKodkod/execute_command A4Reporter/NOP sigs cmd opts)))
+
+(defmacro run [e]
+  `(run-fn (expr ~e)))
 
 ;;
 ;; Compilation
