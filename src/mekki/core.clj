@@ -165,7 +165,7 @@
       ('some expr1) (operator '.some expr1)
       ('set expr1) (operator '.set expr1)
       ('count expr1) (operator '.cardinarity expr1)
-      ('trans expr1) (operator '.traspose expr1)
+      ('trans expr1) (operator '.transpose expr1)
       ('* expr1) (operator '.reflexiveClosure expr1)
       ('or expr1 expr2) (operator '.or expr1 expr2)
       ('iff expr1 expr2) (operator '.iff expr1 expr2)
