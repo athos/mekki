@@ -143,7 +143,7 @@
 
 (def ^:private unary-ops
   '{not not, no no, one one, lone lone, some some, set set
-    count cardinarity, trans transpose, * reflexiveClosure})
+    count cardinality, trans transpose, * reflexiveClosure})
 
 (def ^:private binary-ops
   '{or or, iff iff, if implies, & intersect, + plus, - minus, ++ override,
