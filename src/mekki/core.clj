@@ -146,8 +146,14 @@
 (defn run-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
   (execute e (or sigs (ns-sigs ns)) false))
 
-(defmacro run [e]
-  `(run-fn (expr ~e)))
+(defmacro run [e & opts]
+  `(run-fn (expr ~e) ~@opts))
+
+(defn check-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
+  (execute e (or sigs (ns-sigs ns)) true))
+
+(defmacro check [e & opts]
+  `(check-fn (expr ~e) ~@opts))
 
 ;;
 ;; Compilation
