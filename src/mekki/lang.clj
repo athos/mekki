@@ -1,4 +1,4 @@
-(ns mekki.core
+(ns mekki.lang
   (:refer-clojure :exclude [compile])
   (:require [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
