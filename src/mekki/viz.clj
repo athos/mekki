@@ -1,8 +1,7 @@
 (ns mekki.viz
   (:require [mekki
              [lang :as lang]
-             [exec :as exec]
-             [util :as util]])
+             [exec :as exec]])
   (:import [edu.mit.csail.sdg.alloy4compiler.translator A4Solution]
            [edu.mit.csail.sdg.alloy4viz VizGUI]
            [java.io File]))
