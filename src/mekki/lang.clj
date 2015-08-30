@@ -166,9 +166,12 @@
     for comprehensionOver})
 
 (def ^:private operators
-  (reduce-kv (fn [m k v] (-> m (assoc k v) (assoc (qualify k) v)))
-             {}
-             (merge unary-ops binary-ops ternary-ops formulae)))
+  (reduce (fn [ops op] (-> ops (conj op) (conj (qualify op))))
+          #{}
+          (concat (keys unary-ops)
+                  (keys binary-ops)
+                  (keys ternary-ops)
+                  (keys formulae))))
 
 (defn- operator? [expr]
   (contains? operators (first expr)))
