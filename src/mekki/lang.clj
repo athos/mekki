@@ -150,9 +150,9 @@
     count cardinality, trans transpose, * reflexiveClosure})
 
 (def ^:private binary-ops
-  '{or or, iff iff, if implies, & intersect, + plus, - minus, ++ override,
-    . join, -> product, in in, = equal, < lt, > gt, <= lte, >= gte
-    ->one any_arrow_one, ->lone any_arrow_lone, ->some any_arrow_some
+  '{and and, or or, iff iff, if implies, & intersect, + plus, - minus,
+    ++ override, . join, -> product, in in, = equal, < lt, > gt, <= lte,
+    >= gte, ->one any_arrow_one, ->lone any_arrow_lone, ->some any_arrow_some
     ->set preduct, one-> one_arrow_any, one->one one_arrow_one
     one->lone one_arrow_lone, one->some one_arrow_some
     one->set one_arrow_any, lone-> lone_arrow_any, lone->one lone_arrow_one
