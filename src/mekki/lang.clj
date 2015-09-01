@@ -42,6 +42,8 @@
       #_=> (recur decls' (conj ret (f decl-name decl-type)))
       :else (throw (IllegalArgumentException. "malformed decl")))))
 
+(defn- empty-env [] {})
+
 ;;
 ;; Signature definition
 ;;
@@ -75,7 +77,7 @@
          ~@(for [[decl-name decl-type] (map-decls list fields)]
              `(.addField ~signame
                          ~(name decl-name)
-                         ~(compile #{} decl-type)))
+                         ~(compile (empty-env) decl-type)))
          #'~signame)))
 
 ;;
@@ -107,14 +109,14 @@
     (reduce-with-and (map #(compile env %) block))))
 
 (defn emit-func [funcname params return-type body]
-  (let [decls (compile-decls #{} params)
+  (let [decls (compile-decls (empty-env) params)
         names (map first decls)]
     `(def ~(add-tag funcname ($ Func))
        (let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
                 (Util/asList (into-array Decl ~(mapv first decls)))
                 ~return-type
-                ~(compile-block (set names) body))))))
+                ~(compile-block (zipmap names (repeat :decl)) body))))))
 
 (defmacro defpred [predname params & body]
   (emit-func predname params nil body))
@@ -198,10 +200,11 @@
   (letfn [(operator [method & operands]
             `(~method ~@(map #(compile env %) operands)))
           (formula [method decls body]
-            (let [compiled-decls (compile-decls #{} decls)
-                  names (map first compiled-decls)]
+            (let [compiled-decls (compile-decls (empty-env) decls)
+                  names (map first compiled-decls)
+                  env (merge env (zipmap names (repeat :decl)))]
               `(let [~@(apply concat compiled-decls)]
-                 (~method ~(compile-block (into env names) body)
+                 (~method ~(compile-block env body)
                           ~(first names)
                           (into-array Decl [~@(rest names)])))))]
     (if (operator? expr)
@@ -223,7 +226,7 @@
       (add-tag ($ Expr))))
 
 (defmacro expr [e]
-  (compile #{} e))
+  (compile (empty-env) e))
 
 (comment
 
