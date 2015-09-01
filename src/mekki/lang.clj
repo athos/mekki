@@ -2,7 +2,8 @@
   (:refer-clojure :exclude [compile])
   (:require [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
-            Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant ExprCall]
+            Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant
+            ExprCall ExprLet]
            [edu.mit.csail.sdg.alloy4 Util]
            java.util.Arrays))
 
@@ -143,6 +144,7 @@
     'Int ($ Sig/SIGINT)
     :else (case (get env sym)
             :decl `(.get ~sym)
+            :let sym
             sym)))
 
 (def ^:private unary-ops
@@ -170,7 +172,7 @@
 
 (def ^:private operators
   (reduce (fn [ops op] (-> ops (conj op) (conj (qualify op))))
-          #{}
+          '#{let}
           (concat (keys unary-ops)
                   (keys binary-ops)
                   (keys ternary-ops)
@@ -178,6 +180,16 @@
 
 (defn- operator? [expr]
   (contains? operators (first expr)))
+
+(defn- compile-let [env bindings body]
+  (if (empty? bindings)
+    (compile-block env body)
+    (let [[[name expr] & bindings] bindings]
+      `(let [~name (ExprVar/make nil ~(str name))]
+         (ExprLet/make nil
+                       ~name
+                       ~(compile env expr)
+                       ~(compile-let (assoc env name :let) bindings body))))))
 
 (defmacro compile-operator [expr]
   (letfn [(dot [method] (symbol (str '. method)))]
@@ -195,7 +207,9 @@
        ~@(mapcat (fn [[op method]]
                    [`('~op ~'e1 ~'e2 ~'e3)
                     `(~'operator '~(dot method) ~'e1 ~'e2 ~'e3)])
-                 ternary-ops))))
+                 ternary-ops)
+       ~'('let (bindings :guard vector?) & body)
+       #_=> ~'(compile-let env (partition 2 bindings) body))))
 
 (defn- compile-seq [env expr]
   (letfn [(operator [method & operands]
