@@ -141,8 +141,9 @@
     'univ ($ Sig/UNIV)
     'none ($ Sig/NONE)
     'Int ($ Sig/SIGINT)
-    [_ :guard #(contains? env %)] `(.get ~sym)
-    :else sym))
+    :else (case (get env sym)
+            :decl `(.get ~sym)
+            sym)))
 
 (def ^:private unary-ops
   '{not not, no no, one one, lone lone, some some, set set
