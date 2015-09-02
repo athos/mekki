@@ -1,6 +1,7 @@
 (ns mekki.lang
-  (:refer-clojure :exclude [compile])
-  (:require [clojure.core.match :as m])
+  (:refer-clojure :exclude [compile + - * = < > <= >= -> some-> not and or set some let for count])
+  (:require [clojure.core :as cc]
+            [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
             Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant
             ExprCall ExprLet]
@@ -24,15 +25,15 @@
 
 (defmacro ^:private match [expr & clauses]
   `(m/match ~expr
-     ~@(->> (for [[pattern action] (partition 2 clauses)]
-              (m/match pattern
-                (['quote sym] :seq)
-                #_=> [`(:or '~sym '~(qualify sym)) action]
-                ([(['quote sym] :seq) & rest] :seq)
-                #_=> [`([(:or '~sym '~(qualify sym)) ~@rest] :seq) action]
-                (s :guard seq?) [`(~(vec s) :seq) action]
-                (v :guard vector?) [(seq v) action]
-                :else [pattern action]))
+     ~@(->> (cc/for [[pattern action] (partition 2 clauses)]
+               (m/match pattern
+                 (['quote sym] :seq)
+                 #_=> [`(:or '~sym '~(qualify sym)) action]
+                 ([(['quote sym] :seq) & rest] :seq)
+                 #_=> [`([(:or '~sym '~(qualify sym)) ~@rest] :seq) action]
+                 (s :guard seq?) [`(~(vec s) :seq) action]
+                 (v :guard vector?) [(seq v) action]
+                 :else [pattern action]))
             (apply concat))))
 
 (defn- map-decls [f decls]
@@ -54,28 +55,28 @@
 (defn- parse-opts [opts]
   (loop [[maybe-keyword maybe-arg & opts' :as opts] opts, ret {}]
     (cond (empty? opts) ret
-          (= maybe-keyword :in)
+          (cc/= maybe-keyword :in)
           #_=> (recur opts' (assoc ret :in maybe-arg))
-          (= maybe-keyword :extends)
+          (cc/= maybe-keyword :extends)
           #_=> (recur opts' (assoc ret :parent maybe-arg))
           (vector? maybe-keyword)
           #_=> (assoc ret :fields maybe-keyword))))
 
 (defmacro defsig [signame & opts]
-  (let [meta (meta signame)
-        attrs (cond-> []
-                (:abstract meta) (conj ($ Attr/ABSTRACT))
-                (:lone meta) (conj ($ Attr/LONE))
-                (:one meta) (conj ($ Attr/ONE))
-                (:some meta) (conj ($ Attr/SOME)))
-        {:keys [in parent fields]} (parse-opts opts)]
+  (cc/let [meta (meta signame)
+           attrs (cond-> []
+                   (:abstract meta) (conj ($ Attr/ABSTRACT))
+                   (:lone meta) (conj ($ Attr/LONE))
+                   (:one meta) (conj ($ Attr/ONE))
+                   (:some meta) (conj ($ Attr/SOME)))
+           {:keys [in parent fields]} (parse-opts opts)]
     `(do (def ~(add-tag signame ($ Sig))
            ~(if in
               `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
               `(Sig$PrimSig. ~(name signame)
                              ~@(if parent [parent])
                              (into-array Attr ~attrs))))
-         ~@(for [[decl-name decl-type] (map-decls list fields)]
+         ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
              `(.addField ~signame
                          ~(name decl-name)
                          ~(compile (empty-env) decl-type)))
@@ -110,10 +111,10 @@
     (reduce-with-and (map #(compile env %) block))))
 
 (defn emit-func [funcname params return-type body]
-  (let [decls (compile-decls (empty-env) params)
+  (cc/let [decls (compile-decls (empty-env) params)
         names (map first decls)]
     `(def ~(add-tag funcname ($ Func))
-       (let [~@(apply concat decls)]
+       (cc/let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
                 (Util/asList (into-array Decl ~(mapv first decls)))
                 ~return-type
@@ -171,7 +172,7 @@
     for comprehensionOver})
 
 (def ^:private operators
-  (reduce (fn [ops op] (-> ops (conj op) (conj (qualify op))))
+  (reduce (fn [ops op] (cc/-> ops (conj op) (conj (qualify op))))
           '#{let}
           (concat (keys unary-ops)
                   (keys binary-ops)
@@ -184,8 +185,8 @@
 (defn- compile-let [env bindings body]
   (if (empty? bindings)
     (compile-block env body)
-    (let [[[name expr] & bindings] bindings]
-      `(let [~name (ExprVar/make nil ~(str name))]
+    (cc/let [[[name expr] & bindings] bindings]
+      `(cc/let [~name (ExprVar/make nil ~(str name))]
          (ExprLet/make nil
                        ~name
                        ~(compile env expr)
@@ -215,33 +216,49 @@
   (letfn [(operator [method & operands]
             `(~method ~@(map #(compile env %) operands)))
           (formula [method decls body]
-            (let [compiled-decls (compile-decls (empty-env) decls)
+            (cc/let [compiled-decls (compile-decls (empty-env) decls)
                   names (map first compiled-decls)
                   env (merge env (zipmap names (repeat :decl)))]
-              `(let [~@(apply concat compiled-decls)]
+              `(cc/let [~@(apply concat compiled-decls)]
                  (~method ~(compile-block env body)
                           ~(first names)
                           (into-array Decl [~@(rest names)])))))]
     (if (operator? expr)
       (compile-operator expr)
-      (let [[op & args] expr]
+      (cc/let [[op & args] expr]
         (if (contains? env op)
           (operator '.join (first args) op)
-          (let [v (resolve op)]
-            (if (and (var? v) (= (:tag (meta v)) Sig))
-              (operator '.join (first args) op)
-              `(ExprCall/make nil nil ~op ~(mapv #(compile env %) args) 0))))))))
+          (cc/let [expanded (macroexpand expr)]
+            (if (not= expr expanded)
+              (compile env expanded)
+              (cc/let [v (resolve op)]
+                (if (cc/and (var? v) (cc/= (:tag (meta v)) Sig))
+                  (operator '.join (first args) op)
+                  `(ExprCall/make nil nil ~op
+                                  ~(mapv #(compile env %) args) 0))))))))))
 
 (defn- compile [env expr]
-  (-> (cond (false? expr) ($ ExprConstant/FALSE)
+  (cc/-> (cond (false? expr) ($ ExprConstant/FALSE)
             (true? expr) ($ ExprConstant/TRUE)
             (integer? expr) (compile-integer expr)
             (symbol? expr) (compile-symbol env expr)
             (seq? expr) (compile-seq env expr))
-      (add-tag ($ Expr))))
+         (add-tag ($ Expr))))
 
 (defmacro expr [e]
   (compile (empty-env) e))
+
+;;
+;; Operator declaration for user macro definition
+;;
+;; Be sure when moving these forms since they declare many vars conflicting
+;; with the ones defined in clojure.core namespace.
+;;
+
+(defmacro declare-operators []
+  `(declare ~@(remove namespace operators)))
+
+(declare-operators)
 
 (comment
 
