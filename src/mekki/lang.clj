@@ -26,14 +26,14 @@
 (defmacro ^:private match [expr & clauses]
   `(m/match ~expr
      ~@(->> (cc/for [[pattern action] (partition 2 clauses)]
-               (m/match pattern
-                 (['quote sym] :seq)
-                 #_=> [`(:or '~sym '~(qualify sym)) action]
-                 ([(['quote sym] :seq) & rest] :seq)
-                 #_=> [`([(:or '~sym '~(qualify sym)) ~@rest] :seq) action]
-                 (s :guard seq?) [`(~(vec s) :seq) action]
-                 (v :guard vector?) [(seq v) action]
-                 :else [pattern action]))
+              (m/match pattern
+                (['quote sym] :seq)
+                #_=> [`(:or '~sym '~(qualify sym)) action]
+                ([(['quote sym] :seq) & rest] :seq)
+                #_=> [`([(:or '~sym '~(qualify sym)) ~@rest] :seq) action]
+                (s :guard seq?) [`(~(vec s) :seq) action]
+                (v :guard vector?) [(seq v) action]
+                :else [pattern action]))
             (apply concat))))
 
 (defn- map-decls [f decls]
@@ -239,10 +239,10 @@
 
 (defn- compile [env expr]
   (cc/-> (cond (false? expr) ($ ExprConstant/FALSE)
-            (true? expr) ($ ExprConstant/TRUE)
-            (integer? expr) (compile-integer expr)
-            (symbol? expr) (compile-symbol env expr)
-            (seq? expr) (compile-seq env expr))
+               (true? expr) ($ ExprConstant/TRUE)
+               (integer? expr) (compile-integer expr)
+               (symbol? expr) (compile-symbol env expr)
+               (seq? expr) (compile-seq env expr))
          (add-tag ($ Expr))))
 
 (defmacro expr [e]
