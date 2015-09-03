@@ -3,8 +3,8 @@
   (:require [clojure.core :as cc]
             [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
-            Sig Sig$PrimSig Sig$SubsetSig Attr Func Decl Expr ExprConstant
-            ExprCall ExprLet]
+            Sig Sig$PrimSig Sig$SubsetSig Sig$Field Attr Func Decl Expr
+            ExprConstant ExprCall ExprLet]
            [edu.mit.csail.sdg.alloy4 Util]
            java.util.Arrays))
 
@@ -77,9 +77,10 @@
                              ~@(if parent [parent])
                              (into-array Attr ~attrs))))
          ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
-             `(.addField ~signame
-                         ~(name decl-name)
-                         ~(compile (empty-env) decl-type)))
+             `(def ~(add-tag decl-name ($ Sig$Field))
+                (.addField ~signame
+                           ~(name decl-name)
+                           ~(compile (empty-env) decl-type))))
          #'~signame)))
 
 ;;
