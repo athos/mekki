@@ -233,7 +233,8 @@
             (if (not= expr expanded)
               (compile env expanded)
               (cc/let [v (resolve op)]
-                (if (cc/and (var? v) (cc/= (:tag (meta v)) Sig))
+                (if (cc/and (var? v)
+                            (contains? #{Sig Sig$Field} (:tag (meta v))))
                   (operator '.join (first args) op)
                   `(ExprCall/make nil nil ~op
                                   ~(mapv #(compile env %) args) 0))))))))))
