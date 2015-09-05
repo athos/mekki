@@ -103,13 +103,11 @@
                 (compile-decl env decl-name decl-type)])
              decls))
 
-(defn reduce-with-and [exprs]
-  (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e)) exprs))
-
 (defn compile-block [env block]
   (if (empty? block)
     ExprConstant/TRUE
-    (reduce-with-and (map #(compile env %) block))))
+    (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e))
+            (map #(compile env %) block))))
 
 (defn emit-func [funcname params return-type body]
   (cc/let [decls (compile-decls (empty-env) params)
