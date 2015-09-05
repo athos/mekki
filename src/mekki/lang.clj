@@ -174,8 +174,9 @@
 
 (def ^:private operators
   (reduce (fn [ops op] (cc/-> ops (conj op) (conj (qualify op))))
-          '#{let}
-          (concat (keys unary-ops)
+          #{}
+          (concat ['let]
+                  (keys unary-ops)
                   (keys binary-ops)
                   (keys ternary-ops)
                   (keys formulae))))
