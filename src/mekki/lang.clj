@@ -8,7 +8,7 @@
            [edu.mit.csail.sdg.alloy4 Util]
            java.util.Arrays))
 
-(def the-ns-name (ns-name *ns*))
+(def ^:private the-ns-name (ns-name *ns*))
 
 ;;
 ;; Utilities
@@ -17,10 +17,10 @@
 (defn- qualify [sym]
   (symbol (str the-ns-name) (str sym)))
 
-(defmacro $ [sym]
+(defmacro ^:private $ [sym]
   `'~(symbol (str 'edu.mit.csail.sdg.alloy4compiler.ast. sym)))
 
-(defn add-tag [x tag]
+(defn- add-tag [x tag]
   (vary-meta x assoc :tag tag))
 
 (defmacro ^:private match [expr & clauses]
@@ -103,13 +103,13 @@
                 (compile-decl env decl-name decl-type)])
              decls))
 
-(defn compile-block [env block]
+(defn- compile-block [env block]
   (if (empty? block)
     ExprConstant/TRUE
     (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e))
             (map #(compile env %) block))))
 
-(defn emit-func [funcname params return-type body]
+(defn- emit-func [funcname params return-type body]
   (cc/let [decls (compile-decls (empty-env) params)
         names (map first decls)]
     `(def ~(add-tag funcname ($ Func))
@@ -192,7 +192,7 @@
                        ~(compile env expr)
                        ~(compile-let (assoc env name :let) bindings body))))))
 
-(defmacro compile-operator [expr]
+(defmacro ^:private compile-operator [expr]
   (letfn [(dot [method] (symbol (str '. method)))]
     `(match ~expr
        ~@(mapcat (fn [[op method]]
@@ -256,7 +256,7 @@
 ;; with the ones defined in clojure.core namespace.
 ;;
 
-(defmacro declare-operators []
+(defmacro ^:private declare-operators []
   `(declare ~@(remove namespace operators)))
 
 (declare-operators)
