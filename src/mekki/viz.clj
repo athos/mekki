@@ -4,13 +4,19 @@
              [exec :as exec]])
   (:import [edu.mit.csail.sdg.alloy4compiler.translator A4Solution]
            [edu.mit.csail.sdg.alloy4viz VizGUI]
+           [edu.mit.csail.sdg.alloy4 Computer]
            [java.io File]))
+
+(defn make-enumerator []
+  (reify Computer
+    (compute [this input]
+      (println "invoked compute!!"))))
 
 (defn show [^A4Solution sol]
   (let [^File temp (File/createTempFile "mekki_solution" ".xml")
         filename (.getPath temp)]
     (.writeXML sol filename)
-    (VizGUI. false filename nil)))
+    (VizGUI. false filename nil (make-enumerator) nil)))
 
 (defn run-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
   (show (exec/run-fn e :ns ns :sigs sigs)))
