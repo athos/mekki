@@ -1,6 +1,6 @@
 # mekki
 
-Clojure DSL library for Alloy Analyzer
+Clojure-flavored Alloy language implemented on top of Clojure macro system
 
 ## Usage
 
