@@ -9,7 +9,6 @@
 (defn- execute [e sigs check?]
   (let [cmd (Command. check? 3 3 3 e)
         opts (A4Options.)]
-    (set! (.solver opts) (A4Options$SatSolver/SAT4J))
     (TranslateAlloyToKodkod/execute_command A4Reporter/NOP sigs cmd opts)))
 
 (defn ns-sigs [ns]
