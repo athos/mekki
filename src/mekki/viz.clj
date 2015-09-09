@@ -7,26 +7,26 @@
            [edu.mit.csail.sdg.alloy4 Computer XMLNode]
            [java.io File]))
 
-(defn- make-enumerator [sigs]
-  (let [sol (volatile! nil)]
+(defn- make-enumerator [sol viz sigs]
+  (let [sol (volatile! sol)]
     (reify Computer
       (compute [this filename]
-        (when (= @sol :done)
-          (when-not @sol
-            (let [xml (XMLNode. (File. filename))]
-              (vreset! sol (A4SolutionReader/read sigs xml))))
-          (let [^A4Solution sol' @sol]
-            (when (.satisfiable sol')
-              (.writeXML sol' filename)
-              (vreset! sol (.next sol'))
-              filename)))))))
+        (let [^A4Solution sol' @sol]
+          (when (.satisfiable sol')
+            (let [next (.next sol')]
+              (.writeXML next filename)
+              (.loadXML @viz filename true)
+              (vreset! sol next))
+            filename))))))
 
 (defn show [^A4Solution sol & {:keys [ns sigs] :or {ns *ns*}}]
   (let [sigs (or sigs (exec/ns-sigs ns))
         ^File temp (File/createTempFile "mekki_solution" ".xml")
         filename (.getPath temp)]
     (.writeXML sol filename)
-    (VizGUI. false filename nil (make-enumerator sigs) nil)))
+    (let [viz (volatile! nil)
+          enumerator (make-enumerator sol viz sigs)]
+      (vreset! viz (VizGUI. false filename nil enumerator nil)))))
 
 (defn run-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
   (show (exec/run-fn e :ns ns :sigs sigs) :ns ns :sigs sigs))
