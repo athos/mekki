@@ -20,10 +20,14 @@
   (execute e (or sigs (ns-sigs ns)) false))
 
 (defmacro run [e & opts]
-  `(run-fn (lang/expr ~e) ~@opts))
+  `(let [opts# (merge {:ns (the-ns '~(symbol (str *ns*)))}
+                      (array-map ~@opts))]
+     (apply run-fn (lang/expr ~e) (apply concat opts#))))
 
 (defn check-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
   (execute e (or sigs (ns-sigs ns)) true))
 
 (defmacro check [e & opts]
-  `(check-fn (lang/expr ~e) ~@opts))
+  `(let [opts# (merge {:ns (the-ns '~(symbol (str *ns*)))}
+                      (array-map ~@opts))]
+     (apply check-fn (lang/expr ~e) (apply concat opts#))))
