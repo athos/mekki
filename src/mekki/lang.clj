@@ -4,7 +4,7 @@
             [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
             Sig Sig$PrimSig Sig$SubsetSig Sig$Field Attr Func Decl Expr
-            ExprConstant ExprCall ExprLet]
+            ExprConstant ExprCall ExprLet ExprVar Type]
            [edu.mit.csail.sdg.alloy4 Util]
            java.util.Arrays))
 
@@ -60,7 +60,9 @@
           (cc/= maybe-keyword :extends)
           #_=> (recur opts' (assoc ret :parent maybe-arg))
           (vector? maybe-keyword)
-          #_=> (assoc ret :fields maybe-keyword))))
+          #_=> (recur (cons maybe-arg opts')
+                      (assoc ret :fields maybe-keyword))
+          :else (assoc ret :facts (vec opts)))))
 
 (defmacro defsig [signame & opts]
   (cc/let [meta (meta signame)
@@ -69,7 +71,7 @@
                    (:lone meta) (conj ($ Attr/LONE))
                    (:one meta) (conj ($ Attr/ONE))
                    (:some meta) (conj ($ Attr/SOME)))
-           {:keys [in parent fields]} (parse-opts opts)]
+           {:keys [in parent fields facts]} (parse-opts opts)]
     `(do (def ~(add-tag signame ($ Sig))
            ~(if in
               `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
@@ -81,6 +83,13 @@
                 (.addField ~signame
                            ~(name decl-name)
                            ~(compile (empty-env) decl-type))))
+         ~@(when facts
+             (cc/let [env (zipmap (map-decls (fn [field _] field) fields)
+                                  (repeat :field))]
+               `((cc/let [type# (.merge Type/EMPTY [~signame])
+                          ~'this (ExprVar/make nil "this" type#)]
+                   ~@(cc/for [fact facts]
+                       `(.addFact ~signame ~(compile env fact)))))))
          #'~signame)))
 
 ;;
@@ -145,6 +154,7 @@
     :else (case (get env sym)
             :decl `(.get ~sym)
             :let sym
+            :field `(.join ~'this ~sym)
             sym)))
 
 (def ^:private unary-ops
