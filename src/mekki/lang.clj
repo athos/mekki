@@ -4,7 +4,7 @@
             [clojure.core.match :as m])
   (:import [edu.mit.csail.sdg.alloy4compiler.ast
             Sig Sig$PrimSig Sig$SubsetSig Sig$Field Attr Func Decl Expr
-            ExprConstant ExprCall ExprLet ExprVar Type]
+            ExprConstant ExprCall ExprLet ExprVar ExprList ExprList$Op Type]
            [edu.mit.csail.sdg.alloy4 Util]
            java.util.Arrays))
 
@@ -114,9 +114,9 @@
 
 (defn- compile-block [env block]
   (if (empty? block)
-    ExprConstant/TRUE
-    (reduce (fn [a e] `(.and ~(add-tag a ($ Expr)) ~e))
-            (map #(compile env %) block))))
+    `ExprConstant/TRUE
+    `(ExprList/make nil nil ExprList$Op/AND
+                    ~(mapv #(add-tag (compile env %) ($ Expr)) block))))
 
 (defn- emit-func [funcname params return-type body]
   (cc/let [decls (compile-decls (empty-env) params)
