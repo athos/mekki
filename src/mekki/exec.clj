@@ -1,7 +1,7 @@
 (ns mekki.exec
   (:require [mekki
              [lang :as lang]])
-  (:import [edu.mit.csail.sdg.alloy4compiler.ast Sig Command]
+  (:import [edu.mit.csail.sdg.alloy4compiler.ast Command]
            [edu.mit.csail.sdg.alloy4compiler.translator
             A4Options A4Options$SatSolver TranslateAlloyToKodkod]
            [edu.mit.csail.sdg.alloy4 A4Reporter]))
@@ -13,7 +13,7 @@
 
 (defn ns-sigs [ns]
   (for [[_ v] (ns-publics (the-ns ns))
-        :when (= (:tag (meta v)) Sig)]
+        :when (lang/sig? v)]
     (deref v)))
 
 (defn run-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
