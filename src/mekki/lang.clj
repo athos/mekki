@@ -146,6 +146,21 @@
   (boolean (::func? (meta x))))
 
 ;;
+;; Fact declaration
+;;
+
+(defmacro deffact [name & body]
+  `(def ~(vary-meta name assoc :tag ($ Expr) ::fact? true)
+     ~(compile-block (empty-env) body)))
+
+(defmacro fact [& body]
+  `(deffact ~(with-meta (gensym 'fact) {:private true})
+     ~@body))
+
+(defn fact? [x]
+  (::fact? (meta x)))
+
+;;
 ;; Compilation
 ;;
 
