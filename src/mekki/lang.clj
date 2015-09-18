@@ -60,8 +60,7 @@
           (cc/= maybe-keyword :extends)
           #_=> (recur opts' (assoc ret :parent maybe-arg))
           (vector? maybe-keyword)
-          #_=> (recur (cons maybe-arg opts')
-                      (assoc ret :fields maybe-keyword))
+          #_=> (recur (rest opts) (assoc ret :fields maybe-keyword))
           :else (assoc ret :facts (vec opts)))))
 
 (defmacro defsig [signame & opts]
@@ -83,7 +82,7 @@
                 (.addField ~signame
                            ~(name decl-name)
                            ~(compile (empty-env) decl-type))))
-         ~@(when facts
+         ~@(when-not (empty? facts)
              (cc/let [env (zipmap (map-decls (fn [field _] field) fields)
                                   (repeat :field))]
                `((cc/let [type# (.merge Type/EMPTY [~signame])
