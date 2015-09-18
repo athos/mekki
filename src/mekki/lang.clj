@@ -72,14 +72,14 @@
                    (:one meta) (conj ($ Attr/ONE))
                    (:some meta) (conj ($ Attr/SOME)))
            {:keys [in parent fields facts]} (parse-opts opts)]
-    `(do (def ~(add-tag signame ($ Sig))
+    `(do (def ~(vary-meta signame assoc :tag ($ Sig) ::sig? true)
            ~(if in
               `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
               `(Sig$PrimSig. ~(name signame)
                              ~@(if parent [parent])
                              (into-array Attr ~attrs))))
          ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
-             `(def ~(add-tag decl-name ($ Sig$Field))
+             `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field) :field? true)
                 (.addField ~signame
                            ~(name decl-name)
                            ~(compile (empty-env) decl-type))))
@@ -91,6 +91,12 @@
                    ~@(cc/for [fact facts]
                        `(.addFact ~signame ~(compile env fact)))))))
          #'~signame)))
+
+(defn sig? [x]
+  (boolean (::sig? (meta x))))
+
+(defn field? [x]
+  (boolean (::field? (meta x))))
 
 ;;
 ;; Pred/Func definition
@@ -118,10 +124,10 @@
     `(ExprList/make nil nil ExprList$Op/AND
                     ~(mapv #(add-tag (compile env %) ($ Expr)) block))))
 
-(defn- emit-func [funcname params return-type body]
+(defn- emit-func [meta-key funcname params return-type body]
   (cc/let [decls (compile-decls (empty-env) params)
         names (map first decls)]
-    `(def ~(add-tag funcname ($ Func))
+    `(def ~(vary-meta funcname :tag ($ Func) meta-key true)
        (cc/let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
                 (Util/asList (into-array Decl ~(mapv first decls)))
@@ -129,10 +135,16 @@
                 ~(compile-block (zipmap names (repeat :decl)) body))))))
 
 (defmacro defpred [predname params & body]
-  (emit-func predname params nil body))
+  (emit-func ::pred? predname params nil body))
 
 (defmacro deffunc [funcname params _ return-type body]
-  (emit-func funcname params return-type [body]))
+  (emit-func ::func? funcname params return-type [body]))
+
+(defn pred? [x]
+  (boolean (::pred? (meta x))))
+
+(defn func? [x]
+  (boolean (::func? (meta x))))
 
 ;;
 ;; Compilation
@@ -244,8 +256,7 @@
             (if (not= expr expanded)
               (compile env expanded)
               (cc/let [v (resolve op)]
-                (if (cc/and (var? v)
-                            (contains? #{Sig Sig$Field} (:tag (meta v))))
+                (if (cc/and (var? v) (cc/or (sig? v) (field? v)))
                   (operator '.join (first args) op)
                   `(ExprCall/make nil nil ~op
                                   ~(mapv #(compile env %) args) 0))))))))))
