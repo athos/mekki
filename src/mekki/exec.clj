@@ -11,10 +11,13 @@
         opts (A4Options.)]
     (TranslateAlloyToKodkod/execute_command A4Reporter/NOP sigs cmd opts)))
 
-(defn ns-sigs [ns]
-  (for [[_ v] (ns-publics (the-ns ns))
-        :when (lang/sig? v)]
+(defn- collect-from-ns [pred ns]
+  (for [[_ v] (ns-interns (the-ns ns))
+        :when (pred ns)]
     (deref v)))
+
+(defn ns-sigs [ns]
+  (collect-from-ns lang/sig? ns))
 
 (defn run-fn [e & {:keys [ns sigs] :or {ns *ns*}}]
   (execute e (or sigs (ns-sigs ns)) false))
