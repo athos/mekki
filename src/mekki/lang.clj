@@ -78,7 +78,7 @@
                              ~@(if parent [parent])
                              (into-array Attr ~attrs))))
          ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
-             `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field) :field? true)
+             `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field) ::field? true)
                 (.addField ~signame
                            ~(name decl-name)
                            ~(compile (empty-env) decl-type))))

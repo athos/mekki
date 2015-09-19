@@ -13,7 +13,7 @@
 
 (defn- collect-from-ns [pred ns]
   (for [[_ v] (ns-interns (the-ns ns))
-        :when (pred ns)]
+        :when (pred v)]
     (deref v)))
 
 (defn ns-sigs [ns]
