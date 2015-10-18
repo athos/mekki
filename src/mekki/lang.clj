@@ -47,21 +47,10 @@
 (defn- empty-env [] {})
 
 ;;
-;; Signature definition
+;; Signature/Fields definition
 ;;
 
 (declare compile)
-
-(defn- parse-opts [opts]
-  (loop [[maybe-keyword maybe-arg & opts' :as opts] opts, ret {}]
-    (cond (empty? opts) ret
-          (cc/= maybe-keyword :in)
-          #_=> (recur opts' (assoc ret :in maybe-arg))
-          (cc/= maybe-keyword :extends)
-          #_=> (recur opts' (assoc ret :parent maybe-arg))
-          (vector? maybe-keyword)
-          #_=> (recur (rest opts) (assoc ret :fields maybe-keyword))
-          :else (assoc ret :facts (vec opts)))))
 
 (defmacro defsig [signame & opts]
   (cc/let [meta (meta signame)
@@ -70,29 +59,31 @@
                    (:lone meta) (conj ($ Attr/LONE))
                    (:one meta) (conj ($ Attr/ONE))
                    (:some meta) (conj ($ Attr/SOME)))
-           {:keys [in parent fields facts]} (parse-opts opts)]
+           {in :in parent :extents} (apply array-map opts)]
     `(do (def ~(vary-meta signame assoc :tag ($ Sig) ::sig? true)
            ~(if in
               `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
               `(Sig$PrimSig. ~(name signame)
                              ~@(if parent [parent])
                              (into-array Attr ~attrs))))
-         ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
-             `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field) ::field? true)
-                (.addField ~signame
-                           ~(name decl-name)
-                           ~(compile (empty-env) decl-type))))
-         ~@(when-not (empty? facts)
-             (cc/let [env (zipmap (map-decls (fn [field _] field) fields)
-                                  (repeat :field))]
-               `((cc/let [type# (.merge Type/EMPTY [~signame])
-                          ~'this (ExprVar/make nil "this" type#)]
-                   ~@(cc/for [fact facts]
-                       `(.addFact ~signame ~(compile env fact)))))))
          #'~signame)))
 
 (defn sig? [x]
   (boolean (::sig? (meta x))))
+
+(defmacro deffields [signame fields & facts]
+  `(do ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
+           `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field) ::field? true)
+              (.addField ~signame
+                         ~(name decl-name)
+                         ~(compile (empty-env) decl-type))))
+       ~@(when facts
+           (cc/let [env (zipmap (map-decls (fn [field _] field) fields)
+                                (repeat :field))]
+             `((cc/let [type# (.merge Type/EMPTY [~signame])
+                        ~'this (ExprVar/make nil "this" type#)]
+                 ~@(cc/for [fact facts]
+                     `(.addFact ~signame ~(compile env fact)))))))))
 
 (defn field? [x]
   (boolean (::field? (meta x))))

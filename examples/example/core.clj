@@ -2,8 +2,10 @@
   (:require [mekki [lang :as lang]
                    [exec :as exec]]))
 
+(lang/defsig ^:abstract A)
 (lang/defsig B)
-(lang/defsig ^:abstract A
+
+(lang/deffields A
   [f :- (lone->lone B B)
    g :- B])
 
