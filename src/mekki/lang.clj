@@ -63,27 +63,6 @@
           #_=> (recur (rest opts) (assoc ret :fields maybe-keyword))
           :else (assoc ret :facts (vec opts)))))
 
-(defn- emit-sig [signame in parent attrs]
-  (if in
-    `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
-    `(Sig$PrimSig. ~(name signame)
-                   ~@(if parent [parent])
-                   (into-array Attr ~attrs))))
-
-(defn- emit-fields [signame fields]
-  (cc/for [[decl-name decl-type] (map-decls list fields)]
-    `(alter-var-root ~decl-name
-                     (constantly
-                       (.addField @~signame
-                                  ~(name decl-name)
-                                  ~(compile (empty-env) decl-type))))))
-
-(defn- emit-facts [env signame facts]
-  `((cc/let [type# (.merge Type/EMPTY [~signame])
-             ~'this (ExprVar/make nil "this" type#)]
-      ~@(cc/for [fact facts]
-          `(.addFact ~signame ~(compile env fact))))))
-
 (defmacro defsig [signame & opts]
   (cc/let [meta (meta signame)
            attrs (cond-> []
@@ -91,20 +70,26 @@
                    (:lone meta) (conj ($ Attr/LONE))
                    (:one meta) (conj ($ Attr/ONE))
                    (:some meta) (conj ($ Attr/SOME)))
-           {:keys [in parent fields facts]} (parse-opts opts)
-           field-names (map-decls (fn [field _] field) fields)]
-    `(do (declare ~(vary-meta signame assoc :tag ($ Sig) ::sig? true)
-                  ~@(map #(vary-meta % assoc :tag ($ Sig$Field) ::field? true)
-                         field-names))
-         (def ~signame
-           (delay
-             (cc/let [~signame ~(emit-sig signame in parent attrs)]
-               ~@(emit-fields signame fields)
-               ~@(when-not (empty? facts)
-                   (cc/let [env (cc/-> (zipmap field-names (repeat :field))
-                                       (assoc signame :sig))]
-                     (emit-facts env signame facts)))
-               ~signame))))))
+           {:keys [in parent fields facts]} (parse-opts opts)]
+    `(do (def ~(vary-meta signame assoc :tag ($ Sig) ::sig? true)
+           ~(if in
+              `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
+              `(Sig$PrimSig. ~(name signame)
+                             ~@(if parent [parent])
+                             (into-array Attr ~attrs))))
+         ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
+             `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field) ::field? true)
+                (.addField ~signame
+                           ~(name decl-name)
+                           ~(compile (empty-env) decl-type))))
+         ~@(when-not (empty? facts)
+             (cc/let [env (zipmap (map-decls (fn [field _] field) fields)
+                                  (repeat :field))]
+               `((cc/let [type# (.merge Type/EMPTY [~signame])
+                          ~'this (ExprVar/make nil "this" type#)]
+                   ~@(cc/for [fact facts]
+                       `(.addFact ~signame ~(compile env fact)))))))
+         #'~signame)))
 
 (defn sig? [x]
   (boolean (::sig? (meta x))))
@@ -191,9 +176,8 @@
     :else (case (get env sym)
             :decl `(.get ~sym)
             :let sym
-            :sig sym
             :field `(.join ~'this ~sym)
-            `@~sym)))
+            sym)))
 
 (def ^:private unary-ops
   '{not not, no no, one one, lone lone, some some, set set
