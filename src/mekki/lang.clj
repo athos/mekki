@@ -72,11 +72,11 @@
 
 (defn- emit-fields [signame fields]
   (cc/for [[decl-name decl-type] (map-decls list fields)]
-    `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field) ::field? true)
-       (delay (.addField @~signame
-                         ~(name decl-name)
-                         ~(compile (assoc (empty-env) signame :sig)
-                                   decl-type))))))
+    `(alter-var-root ~decl-name
+                     (constantly
+                       (.addField @~signame
+                                  ~(name decl-name)
+                                  ~(compile (empty-env) decl-type))))))
 
 (defn- emit-facts [env signame facts]
   `((cc/let [type# (.merge Type/EMPTY [~signame])
@@ -91,18 +91,20 @@
                    (:lone meta) (conj ($ Attr/LONE))
                    (:one meta) (conj ($ Attr/ONE))
                    (:some meta) (conj ($ Attr/SOME)))
-           {:keys [in parent fields facts]} (parse-opts opts)]
-    `(do (declare ~(vary-meta signame assoc :tag ($ Sig) ::sig? true))
-         ~@(emit-fields signame fields)
+           {:keys [in parent fields facts]} (parse-opts opts)
+           field-names (map-decls (fn [field _] field) fields)]
+    `(do (declare ~(vary-meta signame assoc :tag ($ Sig) ::sig? true)
+                  ~@(map #(vary-meta % assoc :tag ($ Sig$Field) ::field? true)
+                         field-names))
          (def ~signame
            (delay
              (cc/let [~signame ~(emit-sig signame in parent attrs)]
+               ~@(emit-fields signame fields)
                ~@(when-not (empty? facts)
-                   (cc/let [env (cc/-> (map-decls (fn [f _] f) fields)
-                                       (zipmap (repeat :field)))]
+                   (cc/let [env (cc/-> (zipmap field-names (repeat :field))
+                                       (assoc signame :sig))]
                      (emit-facts env signame facts)))
-               ~signame)))
-         #'~signame)))
+               ~signame))))))
 
 (defn sig? [x]
   (boolean (::sig? (meta x))))
@@ -139,7 +141,7 @@
 (defn- emit-func [meta-key funcname params return-type body]
   (cc/let [decls (compile-decls (empty-env) params)
         names (map first decls)]
-    `(def ~(vary-meta funcname :tag ($ Func) meta-key true)
+    `(def ~(vary-meta funcname assoc :tag ($ Func) meta-key true)
        (cc/let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
                 (Util/asList (into-array Decl ~(mapv first decls)))
@@ -189,9 +191,9 @@
     :else (case (get env sym)
             :decl `(.get ~sym)
             :let sym
-            :sig `@~sym
-            :field `(.join ~'this @~sym)
-            sym)))
+            :sig sym
+            :field `(.join ~'this ~sym)
+            `@~sym)))
 
 (def ^:private unary-ops
   '{not not, no no, one one, lone lone, some some, set set
