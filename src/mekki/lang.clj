@@ -140,7 +140,8 @@
        (cc/let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
                 (Util/asList (into-array Decl ~(mapv first decls)))
-                ~(compile-return-type (empty-env) return-type)
+                ~(when return-type
+                   (compile-return-type (empty-env) return-type))
                 ~(compile-block (zipmap names (repeat :decl)) body))))))
 
 (defmacro defpred [predname params & body]
