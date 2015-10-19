@@ -50,7 +50,7 @@
 ;; Signature/Fields definition
 ;;
 
-(declare compile)
+(declare compile compile-decl)
 
 (defmacro defsig [signame & opts]
   (cc/let [meta (meta signame)
@@ -71,15 +71,30 @@
 (defn sig? [x]
   (boolean (::sig? (meta x))))
 
+(defn- compile-maybe-mult [expr emit-fn default-fn]
+  (match expr
+    ((mult :guard #(cc/and (symbol? %) ('#{one lone some set} %))) e)
+    #_=> (emit-fn mult e)
+    :else (default-fn)))
+
+(defn- compile-field-type [env field-type]
+  (letfn [(emit-fn [mult t]
+            `(~(symbol (str '. mult 'Of)) ~(compile env t)))
+          (default-fn []
+            `(.oneOf ~(compile env field-type)))]
+    (compile-maybe-mult field-type emit-fn default-fn)))
+
 (defmacro deffields [signame fields & facts]
-  `(do ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
-           `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field) ::field? true)
-              (.addField ~signame
-                         ~(name decl-name)
-                         ~(compile (empty-env) decl-type))))
-       ~@(when facts
-           (cc/let [env (zipmap (map-decls (fn [field _] field) fields)
-                                (repeat :field))]
+  (cc/let [field-names (map-decls (fn [field _] field) fields)
+           env (zipmap field-names (repeat :field))]
+    `(do (declare ~@field-names)
+         ~@(cc/for [[decl-name decl-type] (map-decls list fields)]
+             `(def ~(vary-meta decl-name assoc :tag ($ Sig$Field)
+                                               ::field? true)
+                (.addField ~signame
+                           ~(name decl-name)
+                           ~(compile-field-type env decl-type))))
+         ~@(when facts
              `((cc/let [type# (.merge Type/EMPTY [~signame])
                         ~'this (ExprVar/make nil "this" type#)]
                  ~@(cc/for [fact facts]
@@ -93,14 +108,11 @@
 ;;
 
 (defn- compile-decl [env decl-name decl-type]
-  (letfn [(emit-decl [method type]
-            `(~method ~(compile env type) ~(name decl-name)))]
-    (match decl-type
-      ([(maybe-mult :guard symbol?) t] :seq)
-      #_=> (if-let [m ('#{one lone some set} maybe-mult)]
-             (emit-decl (symbol (str '. m 'Of)) t)
-             (emit-decl '.oneOf decl-type))
-      :else (emit-decl '.oneOf decl-type))))
+  (letfn [(emit-fn [mult t]
+            `(~(symbol '. mult 'Of) ~(compile env t) ~(name decl-name)))
+          (default-fn []
+            `(.oneOf ~(compile env decl-type) ~(name decl-name)))]
+    (compile-maybe-mult decl-type emit-fn default-fn)))
 
 (defn- compile-decls [env decls]
   (map-decls (fn [decl-name decl-type]
@@ -114,14 +126,21 @@
     `(ExprList/make nil nil ExprList$Op/AND
                     ~(mapv #(add-tag (compile env %) ($ Expr)) block))))
 
+(defn- compile-return-type [env return-type]
+  (letfn [(emit-fn [mult t]
+            `(~(symbol (str '. mult 'Of)) ~(compile env t)))
+          (default-fn []
+            `(.oneOf ~(compile env return-type)))]
+    (compile-maybe-mult return-type emit-fn default-fn)))
+
 (defn- emit-func [meta-key funcname params return-type body]
   (cc/let [decls (compile-decls (empty-env) params)
-        names (map first decls)]
+           names (map first decls)]
     `(def ~(vary-meta funcname assoc :tag ($ Func) meta-key true)
        (cc/let [~@(apply concat decls)]
          (Func. nil ~(name funcname)
                 (Util/asList (into-array Decl ~(mapv first decls)))
-                ~return-type
+                ~(compile-return-type (empty-env) return-type)
                 ~(compile-block (zipmap names (repeat :decl)) body))))))
 
 (defmacro defpred [predname params & body]
