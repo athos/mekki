@@ -59,7 +59,7 @@
                    (:lone meta) (conj ($ Attr/LONE))
                    (:one meta) (conj ($ Attr/ONE))
                    (:some meta) (conj ($ Attr/SOME)))
-           {in :in parent :extents} (apply array-map opts)]
+           {in :in parent :extends} (apply array-map opts)]
     `(do (def ~(vary-meta signame assoc :tag ($ Sig) ::sig? true)
            ~(if in
               `(Sig$SubsetSig. ~(name signame) ~in (into-array Attr ~attrs))
