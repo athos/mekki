@@ -165,7 +165,7 @@
      ~(compile-block (empty-env) body)))
 
 (defn fact? [x]
-  (::fact? (meta x)))
+  (boolean (::fact? (meta x))))
 
 ;;
 ;; Compilation
