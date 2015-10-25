@@ -69,8 +69,6 @@
         facts (or facts (ns-facts ns))
         funcs (concat (or preds (ns-preds ns))
                       (or funcs (ns-funcs ns)))
-        _ (prn :preds (or preds (ns-preds ns)))
-        _ (prn :preds (or funcs (ns-funcs ns)))
         expr (if (instance? Func expr-or-func)
                (ExprVar/make nil (.label ^Func expr-or-func))
                expr-or-func)
